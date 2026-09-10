@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pulse Invaders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0E0A1F;
+    --void-2:#171232;
+    --amber:#FF9D3D;
+    --mint:#7CF3C4;
+    --alarm:#FF4667;
+    --form:#FFEFA8;
+    --form-edge:#F2DC7E;
+    --ink:#2A1F0E;
+    --ink-soft:#6B5A33;
+    --pixel:"Press Start 2P", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans:"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{margin:0;height:100%}
+
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #221a48 0%, rgba(34,26,72,0) 60%),
+      var(--void);
+    color:var(--mint);
+    font-family:var(--sans);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:14px;
+    gap:12px;
+    min-height:100%;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .cabinet{
+    width:100%;
+    max-width:480px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  /* ---------- top bar ---------- */
+  .masthead{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .wordmark{
+    font-family:var(--pixel);
+    font-size:13px;
+    line-height:1.5;
+    color:var(--amber);
+    letter-spacing:.5px;
+    margin:0;
+  }
+  .wordmark span{color:var(--mint)}
+  .sound{
+    background:none;
+    border:1px solid rgba(124,243,196,.35);
+    color:var(--mint);
+    font-family:var(--sans);
+    font-size:12px;
+    padding:5px 9px;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .sound:hover{border-color:var(--mint)}
+  .sound:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+  /* ---------- screen ---------- */
+  .screen{
+    position:relative;
+    background:#080517;
+    border:1px solid rgba(124,243,196,.22);
+    border-radius:4px;
+    overflow:hidden;
+    box-shadow:0 0 0 6px #0b0820, 0 18px 40px rgba(0,0,0,.55);
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    image-rendering:pixelated;
+    image-rendering:crisp-edges;
+    touch-action:none;
+  }
+  .scanlines{
+    position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+
+  /* ---------- pulse meter ---------- */
+  .meter{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:12px;
+    color:rgba(124,243,196,.72);
+  }
+  .meter-track{
+    flex:1;
+    height:6px;
+    background:rgba(124,243,196,.13);
+    border-radius:99px;
+    overflow:hidden;
+  }
+  .meter-fill{
+    height:100%;
+    width:100%;
+    background:var(--mint);
+    transform-origin:left;
+    border-radius:99px;
+  }
+  .meter.soon .meter-fill{background:var(--amber)}
+  .meter-count{
+    font-family:var(--pixel);
+    font-size:10px;
+    min-width:26px;
+    text-align:right;
+    color:var(--amber);
+  }
+
+  /* ---------- touch pad ---------- */
+  .pad{display:none;gap:8px;margin-top:2px}
+  @media (pointer:coarse){ .pad{display:flex} }
+  .pad button{
+    flex:1;
+    padding:16px 0;
+    font-family:var(--pixel);
+    font-size:12px;
+    color:var(--mint);
+    background:var(--void-2);
+    border:1px solid rgba(124,243,196,.3);
+    border-radius:5px;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .pad button:active{background:#241c4d}
+  .pad .fire{flex:1.4;color:var(--amber);border-color:rgba(255,157,61,.45)}
+
+  .hint{
+    font-size:11.5px;
+    color:rgba(124,243,196,.5);
+    text-align:center;
+    margin:0;
+  }
+  @media (pointer:coarse){ .hint{display:none} }
+
+  /* ---------- overlays ---------- */
+  .overlay{
+    position:absolute;inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(8,5,23,.82);
+    backdrop-filter:blur(2px);
+  }
+  .overlay[hidden]{display:none}
+
+  .titlecard{text-align:center;max-width:330px}
+  .titlecard h2{
+    font-family:var(--pixel);
+    font-size:20px;
+    line-height:1.5;
+    color:var(--amber);
+    margin:0 0 14px;
+  }
+  .titlecard p{
+    font-size:13.5px;
+    line-height:1.65;
+    color:rgba(124,243,196,.8);
+    margin:0 0 18px;
+  }
+  .btn{
+    font-family:var(--pixel);
+    font-size:11px;
+    line-height:1.6;
+    padding:13px 18px;
+    background:var(--mint);
+    color:#08210f;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .btn:hover{background:#9dfad4}
+  .btn:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .btn.ghost{
+    background:none;
+    color:var(--mint);
+    border:1px solid rgba(124,243,196,.4);
+  }
+  .btn.ghost:hover{background:rgba(124,243,196,.1)}
+
+  /* ---------- the form ---------- */
+  .form{
+    width:100%;
+    max-width:340px;
+    background:var(--form);
+    color:var(--ink);
+    border-radius:2px;
+    transform:rotate(-1.4deg);
+    box-shadow:6px 8px 0 rgba(0,0,0,.45);
+    animation:slap .34s cubic-bezier(.2,1.3,.5,1) both;
+    max-height:100%;
+    overflow-y:auto;
+  }
+  @keyframes slap{
+    from{transform:translateY(-26px) rotate(3deg);opacity:0}
+    to{transform:translateY(0) rotate(-1.4deg);opacity:1}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .form{animation:none}
+  }
+  .perf{
+    height:9px;
+    background:
+      radial-gradient(circle at 5px 0, transparent 4px, var(--form) 4.5px) 0 0/10px 9px repeat-x;
+    background-color:transparent;
+  }
+  .form-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding:2px 16px 8px;
+    border-bottom:1.5px dashed rgba(42,31,14,.35);
+  }
+  .form-head strong{font-size:14px;font-weight:600;letter-spacing:-.1px}
+  .form-head span{font-size:10.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .form-body{padding:14px 16px 16px}
+  .qtext{
+    font-size:15.5px;
+    line-height:1.45;
+    margin:0 0 13px;
+    font-weight:600;
+    letter-spacing:-.15px;
+  }
+  .answers{display:flex;flex-direction:column;gap:6px}
+  .ans{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    text-align:left;
+    font-family:var(--sans);
+    font-size:13.5px;
+    padding:10px 11px;
+    background:rgba(255,255,255,.5);
+    border:1px solid rgba(42,31,14,.22);
+    border-radius:2px;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .ans:hover{background:#fff;border-color:var(--ink)}
+  .ans:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+  .ans b{
+    font-family:var(--pixel);
+    font-size:8px;
+    color:var(--ink-soft);
+    width:14px;
+    flex:none;
+  }
+  .scale{display:flex;flex-wrap:wrap;gap:5px}
+  .scale .ans{
+    width:auto;
+    flex:1 0 auto;
+    min-width:34px;
+    justify-content:center;
+    font-variant-numeric:tabular-nums;
+    padding:11px 6px;
+  }
+  .scale-ends{
+    display:flex;
+    justify-content:space-between;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+  .form-foot{
+    padding:10px 16px 13px;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    line-height:1.5;
+    border-top:1.5px dashed rgba(42,31,14,.35);
+  }
+
+  /* ---------- resume countdown ---------- */
+  .resume{
+    font-family:var(--pixel);
+    font-size:44px;
+    color:var(--amber);
+    text-align:center;
+  }
+  .resume small{display:block;font-size:9px;color:var(--mint);margin-top:14px;line-height:1.7}
+
+  /* ---------- results ---------- */
+  .results{
+    width:100%;
+    max-width:350px;
+    max-height:100%;
+    overflow-y:auto;
+    text-align:left;
+  }
+  .results h2{
+    font-family:var(--pixel);
+    font-size:16px;
+    color:var(--alarm);
+    margin:0 0 4px;
+  }
+  .results .sub{
+    font-size:12.5px;
+    color:rgba(124,243,196,.7);
+    margin:0 0 14px;
+  }
+  .stats{display:flex;gap:8px;margin-bottom:14px}
+  .stat{
+    flex:1;
+    background:var(--void-2);
+    border:1px solid rgba(124,243,196,.2);
+    border-radius:3px;
+    padding:9px 10px;
+  }
+  .stat i{display:block;font-style:normal;font-size:10.5px;color:rgba(124,243,196,.6);margin-bottom:3px}
+  .stat b{font-family:var(--pixel);font-size:14px;color:var(--amber);font-weight:400}
+  .log{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:9px}
+  .log li{font-size:12.5px;line-height:1.45;color:rgba(255,255,255,.82)}
+  .log li em{display:block;font-style:normal;color:var(--mint);font-weight:600;margin-top:2px}
+  .empty{font-size:12.5px;color:rgba(124,243,196,.6);line-height:1.6;margin:0 0 14px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .actions .btn{flex:1 0 auto}
+</style>
+</head>
+<body>
+
+<main class="cabinet">
+  <div class="masthead">
+    <h1 class="wordmark">PULSE <span>INVADERS</span></h1>
+    <button class="sound" id="soundBtn" aria-pressed="true">Sound on</button>
+  </div>
+
+  <div class="screen">
+    <canvas id="game" width="480" height="620" aria-label="Space Invaders game"></canvas>
+    <div class="scanlines" aria-hidden="true"></div>
+
+    <!-- start -->
+    <div class="overlay" id="startOverlay">
+      <div class="titlecard">
+        <h2>PULSE<br>INVADERS</h2>
+        <p>Defend the line. Every 10 seconds, HR interrupts with one question about how work is going. Answer it, get back to shooting.</p>
+        <button class="btn" id="startBtn">Start shift</button>
+      </div>
+    </div>
+
+    <!-- survey -->
+    <div class="overlay" id="surveyOverlay" hidden>
+      <div class="form" role="dialog" aria-modal="true" aria-labelledby="qtext">
+        <div class="perf" aria-hidden="true"></div>
+        <div class="form-head">
+          <strong>Pulse check</strong>
+          <span id="formNo">No. 1</span>
+        </div>
+        <div class="form-body">
+          <p class="qtext" id="qtext"></p>
+          <div id="answers"></div>
+        </div>
+        <div class="form-foot" id="formFoot">Invaders are on hold until you answer.</div>
+      </div>
+    </div>
+
+    <!-- resume -->
+    <div class="overlay" id="resumeOverlay" hidden>
+      <div class="resume"><span id="resumeNum">3</span><small id="resumeMsg">Back to it</small></div>
+    </div>
+
+    <!-- game over -->
+    <div class="overlay" id="overOverlay" hidden>
+      <div class="results">
+        <h2 id="overTitle">Shift over</h2>
+        <p class="sub" id="overSub"></p>
+        <div class="stats">
+          <div class="stat"><i>Score</i><b id="stScore">0</b></div>
+          <div class="stat"><i>Wave</i><b id="stWave">1</b></div>
+          <div class="stat"><i>Engagement</i><b id="stEng">—</b></div>
+        </div>
+        <ul class="log" id="log"></ul>
+        <p class="empty" id="logEmpty" hidden>You didn't survive long enough to be surveyed. Rare privilege.</p>
+        <div class="actions">
+          <button class="btn" id="againBtn">Play again</button>
+          <button class="btn ghost" id="copyBtn">Copy responses</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meter" id="meter">
+    <span>Next check-in</span>
+    <span class="meter-track"><span class="meter-fill" id="meterFill"></span></span>
+    <span class="meter-count" id="meterCount">30</span>
+  </div>
+
+  <div class="pad">
+    <button id="padLeft" aria-label="Move left">◀</button>
+    <button class="fire" id="padFire" aria-label="Fire">FIRE</button>
+    <button id="padRight" aria-label="Move right">▶</button>
+  </div>
+
+  <p class="hint">← → or A / D to move · Space to fire · P to pause</p>
+</main>
+
+<script>
+(() => {
+"use strict";
+
+/* ============================================================
+   QUESTION BANK
+   ============================================================ */
+const LIKERT = ["Strongly disagree","Disagree","Neutral","Agree","Strongly agree"];
+
+const QUESTIONS = [
+  {t:"likert", q:"I know what's expected of me at work."},
+  {t:"likert", q:"In the last week, someone recognised work I did well."},
+  {t:"enps",   q:"How likely are you to recommend this company as a place to work?"},
+  {t:"likert", q:"I have the tools and resources I need to do my job properly."},
+  {t:"likert", q:"My workload is manageable most weeks."},
+  {t:"likert", q:"I can see a path for myself here over the next two years."},
+  {t:"likert", q:"My manager gives me feedback I can actually use."},
+  {t:"likert", q:"I'd feel comfortable disagreeing with a decision in a meeting."},
+  {t:"likert", q:"I can switch off from work outside my hours."},
+  {t:"likert", q:"My team handles it well when something goes wrong."},
+  {t:"likert", q:"If I had a serious concern, I know who to raise it with."},
+  {t:"likert", q:"I trust what leadership tells us about how things are going."},
+  {t:"choice", q:"What takes the most out of you in a normal week?",
+   options:[["Meetings",0.25],["Unclear priorities",0.15],["Tools and process",0.4],["Nothing much — it's fine",1]]},
+  {t:"choice", q:"How have you felt starting most days this month?",
+   options:[["Energised",1],["Steady",0.7],["Running on fumes",0.25],["Checked out",0]]},
+  {t:"choice", q:"What would make the biggest difference to your week?",
+   options:[["More focus time",0.4],["Clearer decisions",0.3],["Better tools",0.45],["Being recognised",0.3]]},
+  {t:"choice", q:"When did you last take a proper break — no laptop, no messages?",
+   options:[["This week",1],["This month",0.65],["This quarter",0.3],["Can't remember",0]]}
+];
+
+const FOOTERS = [
+  "Invaders are on hold until you answer.",
+  "Your answer is anonymous. So are the invaders.",
+  "This takes four seconds. The aliens can wait.",
+  "One question. Then straight back to the front line.",
+  "Answers go nowhere. This is a game."
+];
+
+/* ============================================================
+   SPRITES
+   ============================================================ */
+const RAW = {
+  squid:[[
+    "...00...","..0000..",".000000.","00.00.00",
+    "00000000","..0..0..",".0.00.0.","0.0..0.0"
+  ],[
+    "...00...","..0000..",".000000.","00.00.00",
+    "00000000",".0.00.0.","0.0..0.0",".0....0."
+  ]],
+  crab:[[
+    "..0.....0..","...0...0...","..0000000..",".00.000.00.",
+    "00000000000","0.0000000.0","0.0.....0.0","...00.00..."
+  ],[
+    "..0.....0..","0..0...0..0","0.0000000.0","000.000.000",
+    "00000000000",".000000000.","..0.....0..",".0.......0."
+  ]],
+  octo:[[
+    "....0000....",".0000000000.","000000000000","000..00..000",
+    "000000000000","...000000...","..000..000..","....00..00.."
+  ],[
+    "....0000....",".0000000000.","000000000000","000..00..000",
+    "000000000000","..00000000..",".00..00..00.","..00....00.."
+  ]],
+  ship:[[
+    "......0......",".....000.....",".....000.....",".00000000000.",
+    "0000000000000","0000000000000","0000000000000","0000000000000"
+  ]],
+  boom:[[
+    "0..0.....0..","..0..0..0...",".....0......","..0.00000.0.",
+    ".0..00000..0","..0.00000.0.","....0...0...","..0...0...0."
+  ]]
+};
+
+function bake(rows){
+  const pts=[];
+  rows.forEach((r,y)=>[...r].forEach((c,x)=>{ if(c==="0") pts.push(x,y); }));
+  return {pts, w:rows[0].length, h:rows.length};
+}
+const SPR={};
+for(const k in RAW) SPR[k]=RAW[k].map(bake);
+
+const PX = 2;                       // invader pixel scale
+function drawSprite(ctx, s, x, y, scale, color){
+  ctx.fillStyle=color;
+  const p=s.pts;
+  for(let i=0;i<p.length;i+=2) ctx.fillRect(x+p[i]*scale, y+p[i+1]*scale, scale, scale);
+}
+
+/* ============================================================
+   SETUP
+   ============================================================ */
+const cv = document.getElementById("game");
+const ctx = cv.getContext("2d");
+const W = cv.width, H = cv.height;
+
+const C = {
+  void:"#0E0A1F", amber:"#FF9D3D", mint:"#7CF3C4",
+  alarm:"#FF4667", star:"#3a2f6b", bunker:"#8f7be8"
+};
+
+const TYPES = [
+  {spr:"squid", pts:30, color:"#FFD36E"},
+  {spr:"crab",  pts:20, color:"#FF9D3D"},
+  {spr:"octo",  pts:10, color:"#FF7A6B"}
+];
+const ROW_TYPE = [0,1,1,2,2];
+
+const COLS=8, ROWS=5, CELL_W=32, CELL_H=26, CELL_MAX=24;
+const GRID_W = COLS*CELL_W;
+const PULSE_EVERY = 10;             // seconds of live play between questions
+
+const el = id => document.getElementById(id);
+const ui = {
+  start:el("startOverlay"), survey:el("surveyOverlay"), resume:el("resumeOverlay"), over:el("overOverlay"),
+  qtext:el("qtext"), answers:el("answers"), formNo:el("formNo"), formFoot:el("formFoot"),
+  resumeNum:el("resumeNum"), resumeMsg:el("resumeMsg"),
+  meter:el("meter"), meterFill:el("meterFill"), meterCount:el("meterCount"),
+  log:el("log"), logEmpty:el("logEmpty"),
+  stScore:el("stScore"), stWave:el("stWave"), stEng:el("stEng"),
+  overTitle:el("overTitle"), overSub:el("overSub"), soundBtn:el("soundBtn")
+};
+
+let G = null;                        // game state object
+let last = 0;
+const keys = Object.create(null);
+
+/* ---------- audio ---------- */
+let actx = null, soundOn = true;
+function beep(freq, dur, type="square", vol=0.05){
+  if(!soundOn) return;
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==="suspended") actx.resume();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+function newGame(){
+  G = {
+    state:"playing",
+    score:0, lives:3, wave:1,
+    player:{x:W/2-13, y:H-56, w:26, h:16, speed:250, dead:0},
+    pBullet:null,
+    eBullets:[],
+    parts:[],
+    invaders:[], gx:0, gy:0, dir:1, stepT:0, frame:0,
+    bunkers:[],
+    stars:[],
+    pulseT:0, pulseCount:0, answers:[],
+    qOrder:shuffle(QUESTIONS.map((_,i)=>i)), qIndex:0,
+    shootT:1.1, flash:0, waveT:0
+  };
+  for(let i=0;i<46;i++) G.stars.push({x:Math.random()*W, y:Math.random()*H, s:Math.random()<0.25?2:1});
+  buildWave();
+  buildBunkers();
+}
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function buildWave(){
+  G.invaders=[];
+  G.gx=(W-GRID_W)/2;
+  G.gy=64+Math.min(4,G.wave-1)*14;
+  G.dir=1; G.stepT=0; G.frame=0;
+  for(let r=0;r<ROWS;r++)
+    for(let c=0;c<COLS;c++)
+      G.invaders.push({r,c,t:ROW_TYPE[r],alive:true});
+  G.pBullet=null; G.eBullets=[];
+}
+
+const BUNKER_MASK = [
+  "..00000000..",
+  ".0000000000.",
+  "000000000000",
+  "000000000000",
+  "000000000000",
+  "0000....0000",
+  "000......000",
+  "000......000"
+];
+const BB = 4;                        // bunker block size
+
+function buildBunkers(){
+  G.bunkers=[];
+  const bw = BUNKER_MASK[0].length*BB;
+  const gap = (W - 4*bw)/5;
+  for(let i=0;i<4;i++){
+    const bx = gap + i*(bw+gap), by = H-146;
+    const blocks=[];
+    BUNKER_MASK.forEach((row,y)=>[...row].forEach((ch,x)=>{
+      if(ch==="0") blocks.push({x:bx+x*BB, y:by+y*BB, hp:3});
+    }));
+    G.bunkers.push(blocks);
+  }
+}
+
+function invRect(inv){
+  const s = SPR[TYPES[inv.t].spr][G.frame];
+  const w = s.w*PX, h = s.h*PX;
+  return {
+    x: G.gx + inv.c*CELL_W + (CELL_MAX-w)/2,
+    y: G.gy + inv.r*CELL_H,
+    w, h, s
+  };
+}
+
+const hit=(a,b)=> a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+
+function burst(x,y,color,n=14){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, sp=30+Math.random()*130;
+    G.parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.45+Math.random()*.35,t:0,color});
+  }
+}
+
+/* ============================================================
+   UPDATE
+   ============================================================ */
+function update(dt){
+  // particles always run
+  for(let i=G.parts.length-1;i>=0;i--){
+    const p=G.parts[i];
+    p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=140*dt;
+    if(p.t>=p.life) G.parts.splice(i,1);
+  }
+  if(G.flash>0) G.flash-=dt;
+
+  if(G.state==="dead"){
+    G.player.dead-=dt;
+    if(G.player.dead<=0){
+      if(G.lives<=0) return gameOver("The line broke");
+      G.state="playing";
+      G.player.x=W/2-13;
+      G.eBullets=[];
+    }
+    return;
+  }
+  if(G.state==="wave"){
+    G.waveT-=dt;
+    if(G.waveT<=0){ G.wave++; buildWave(); G.state="playing"; }
+    return;
+  }
+  if(G.state!=="playing") return;
+
+  // --- pulse survey timer ---
+  G.pulseT+=dt;
+  if(G.pulseT>=PULSE_EVERY){ G.pulseT=0; openSurvey(); return; }
+
+  // --- player ---
+  const p=G.player;
+  let mv=0;
+  if(keys.left) mv-=1;
+  if(keys.right) mv+=1;
+  p.x=Math.max(8, Math.min(W-8-p.w, p.x+mv*p.speed*dt));
+
+  if(keys.fire && !G.pBullet){
+    G.pBullet={x:p.x+p.w/2-1.5, y:p.y-8, w:3, h:10};
+    beep(880,0.06,"square",0.035);
+  }
+
+  // --- player bullet ---
+  if(G.pBullet){
+    const b=G.pBullet;
+    b.y-=560*dt;
+    if(b.y+b.h<0) G.pBullet=null;
+    else if(bunkerHit(b)) G.pBullet=null;
+    else {
+      for(const inv of G.invaders){
+        if(!inv.alive) continue;
+        if(hit(b, invRect(inv))){
+          inv.alive=false;
+          G.score+=TYPES[inv.t].pts*G.wave;
+          const r=invRect(inv);
+          burst(r.x+r.w/2, r.y+r.h/2, TYPES[inv.t].color);
+          G.pBullet=null;
+          beep(180+Math.random()*90,0.1,"square",0.045);
+          break;
+        }
+      }
+    }
+  }
+
+  // --- invader march ---
+  const alive=G.invaders.filter(i=>i.alive);
+  if(alive.length===0){ G.state="wave"; G.waveT=1.1; beep(660,0.18,"triangle",0.05); return; }
+
+  const ratio=alive.length/(COLS*ROWS);
+  const interval=Math.max(0.055, (0.72*ratio+0.05) * Math.pow(0.88, G.wave-1));
+  G.stepT+=dt;
+  if(G.stepT>=interval){
+    G.stepT=0;
+    G.frame^=1;
+    let minX=Infinity, maxX=-Infinity;
+    for(const inv of alive){ const r=invRect(inv); minX=Math.min(minX,r.x); maxX=Math.max(maxX,r.x+r.w); }
+    if((G.dir>0 && maxX+8>W-10) || (G.dir<0 && minX-8<10)){
+      G.dir*=-1; G.gy+=14;
+    } else {
+      G.gx+=8*G.dir;
+    }
+    beep(90+ (1-ratio)*70, 0.05, "square", 0.022);
+
+    // reached the floor?
+    for(const inv of alive){
+      const r=invRect(inv);
+      if(r.y+r.h >= p.y-2) return gameOver("They reached the desk");
+    }
+  }
+
+  // --- invader fire ---
+  G.shootT-=dt;
+  if(G.shootT<=0){
+    G.shootT = Math.max(0.22, (0.95 - G.wave*0.06) * (0.5+Math.random()));
+    // pick lowest invader in a random occupied column
+    const cols=[...new Set(alive.map(i=>i.c))];
+    if(cols.length){
+      const c=cols[(Math.random()*cols.length)|0];
+      let low=null;
+      for(const inv of alive) if(inv.c===c && (!low || inv.r>low.r)) low=inv;
+      if(low){
+        const r=invRect(low);
+        G.eBullets.push({x:r.x+r.w/2-1.5, y:r.y+r.h, w:3, h:10, wob:Math.random()*6});
+      }
+    }
+  }
+
+  // --- invader bullets ---
+  for(let i=G.eBullets.length-1;i>=0;i--){
+    const b=G.eBullets[i];
+    b.y += (180+G.wave*12)*dt;
+    b.wob+=dt*18;
+    if(b.y>H){ G.eBullets.splice(i,1); continue; }
+    if(bunkerHit(b)){ G.eBullets.splice(i,1); continue; }
+    if(G.pBullet && hit(b,G.pBullet)){
+      burst(b.x, b.y, C.mint, 6);
+      G.eBullets.splice(i,1); G.pBullet=null; continue;
+    }
+    if(hit(b,{x:p.x,y:p.y,w:p.w,h:p.h})){
+      G.eBullets.splice(i,1);
+      G.lives--;
+      G.flash=0.25;
+      burst(p.x+p.w/2, p.y+p.h/2, C.alarm, 24);
+      beep(70,0.4,"sawtooth",0.06);
+      G.state="dead"; p.dead=1.1;
+      return;
+    }
+  }
+}
+
+function bunkerHit(b){
+  for(const blocks of G.bunkers){
+    for(let i=blocks.length-1;i>=0;i--){
+      const k=blocks[i];
+      if(hit(b,{x:k.x,y:k.y,w:BB,h:BB})){
+        // chip a small cluster
+        for(let j=blocks.length-1;j>=0;j--){
+          const o=blocks[j];
+          if(Math.abs(o.x-k.x)<=BB && Math.abs(o.y-k.y)<=BB){
+            o.hp--;
+            if(o.hp<=0) blocks.splice(j,1);
+          }
+        }
+        burst(k.x+BB/2, k.y+BB/2, C.bunker, 5);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/* ============================================================
+   DRAW
+   ============================================================ */
+function draw(){
+  ctx.fillStyle=C.void;
+  ctx.fillRect(0,0,W,H);
+
+  // starfield
+  for(const s of G.stars){ ctx.fillStyle=C.star; ctx.fillRect(s.x|0,s.y|0,s.s,s.s); }
+
+  if(G.flash>0){
+    ctx.fillStyle=`rgba(255,70,103,${G.flash*0.5})`;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // HUD
+  ctx.font='10px "Press Start 2P", monospace';
+  ctx.textBaseline="top";
+  ctx.fillStyle=C.mint;
+  ctx.fillText(String(G.score).padStart(5,"0"), 12, 14);
+  ctx.fillStyle="rgba(124,243,196,.45)";
+  ctx.fillText("WAVE "+G.wave, W/2-30, 14);
+  for(let i=0;i<G.lives;i++)
+    drawSprite(ctx, SPR.ship[0], W-22-i*32, 12, 1.6, C.mint);
+  ctx.fillStyle="rgba(124,243,196,.18)";
+  ctx.fillRect(0,36,W,1);
+
+  // bunkers
+  for(const blocks of G.bunkers)
+    for(const k of blocks){
+      ctx.fillStyle = k.hp===3 ? C.bunker : (k.hp===2 ? "#6d5cbb" : "#4c4088");
+      ctx.fillRect(k.x,k.y,BB,BB);
+    }
+
+  // invaders
+  for(const inv of G.invaders){
+    if(!inv.alive) continue;
+    const r=invRect(inv);
+    drawSprite(ctx, r.s, r.x, r.y, PX, TYPES[inv.t].color);
+  }
+
+  // player
+  const p=G.player;
+  if(G.state==="dead"){
+    if(Math.floor(G.player.dead*10)%2===0)
+      drawSprite(ctx, SPR.boom[0], p.x, p.y, PX, C.alarm);
+  } else {
+    drawSprite(ctx, SPR.ship[0], p.x, p.y, PX, C.mint);
+  }
+
+  // ground line
+  ctx.fillStyle="rgba(124,243,196,.3)";
+  ctx.fillRect(0,H-26,W,1);
+
+  // bullets
+  if(G.pBullet){ ctx.fillStyle=C.mint; ctx.fillRect(G.pBullet.x,G.pBullet.y,G.pBullet.w,G.pBullet.h); }
+  ctx.fillStyle=C.alarm;
+  for(const b of G.eBullets){
+    const off=Math.sin(b.wob)*1.5;
+    ctx.fillRect(b.x+off,b.y,b.w,b.h*0.6);
+    ctx.fillRect(b.x-off,b.y+b.h*0.6,b.w,b.h*0.4);
+  }
+
+  // particles
+  for(const p2 of G.parts){
+    ctx.globalAlpha=Math.max(0,1-p2.t/p2.life);
+    ctx.fillStyle=p2.color;
+    ctx.fillRect(p2.x|0,p2.y|0,2,2);
+  }
+  ctx.globalAlpha=1;
+
+  if(G.state==="wave"){
+    ctx.font='12px "Press Start 2P", monospace';
+    ctx.fillStyle=C.amber;
+    ctx.textAlign="center";
+    ctx.fillText("WAVE "+(G.wave+1), W/2, H/2-6);
+    ctx.textAlign="left";
+  }
+}
+
+/* ============================================================
+   LOOP
+   ============================================================ */
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(!G) return;
+  const dt=Math.min(0.05,(ts-last)/1000||0);
+  last=ts;
+  if(G.state==="playing"||G.state==="dead"||G.state==="wave") update(dt);
+  else { for(let i=G.parts.length-1;i>=0;i--){ const p=G.parts[i]; p.t+=dt; if(p.t>=p.life) G.parts.splice(i,1);} }
+  draw();
+  paintMeter();
+}
+requestAnimationFrame(loop);
+
+function paintMeter(){
+  const left=Math.max(0, PULSE_EVERY-G.pulseT);
+  ui.meterFill.style.transform=`scaleX(${left/PULSE_EVERY})`;
+  ui.meterCount.textContent=Math.ceil(left);
+  ui.meter.classList.toggle("soon", left<=5);
+}
+
+/* ============================================================
+   SURVEY
+   ============================================================ */
+function openSurvey(){
+  G.state="survey";
+  keys.left=keys.right=keys.fire=false;
+
+  if(G.qIndex>=G.qOrder.length) G.qOrder=shuffle(G.qOrder), G.qIndex=0;
+  const q=QUESTIONS[G.qOrder[G.qIndex++]];
+  G.pulseCount++;
+  G.currentQ=q;
+
+  ui.qtext.textContent=q.q;
+  ui.formNo.textContent="No. "+G.pulseCount;
+  ui.formFoot.textContent=FOOTERS[(G.pulseCount-1)%FOOTERS.length];
+  ui.answers.innerHTML="";
+
+  const mk=(label,key,onPick)=>{
+    const b=document.createElement("button");
+    b.className="ans"; b.type="button";
+    if(key){ const k=document.createElement("b"); k.textContent=key; b.appendChild(k); }
+    b.appendChild(document.createTextNode(label));
+    b.addEventListener("click",onPick);
+    return b;
+  };
+
+  if(q.t==="likert"){
+    const wrap=document.createElement("div");
+    wrap.className="answers";
+    LIKERT.forEach((label,i)=>{
+      wrap.appendChild(mk(label,String(i+1),()=>answer(label,i/4)));
+    });
+    ui.answers.appendChild(wrap);
+  } else if(q.t==="enps"){
+    const wrap=document.createElement("div");
+    wrap.className="scale";
+    for(let n=0;n<=10;n++) wrap.appendChild(mk(String(n),null,()=>answer(n+" out of 10",n/10)));
+    ui.answers.appendChild(wrap);
+    const ends=document.createElement("div");
+    ends.className="scale-ends";
+    ends.innerHTML="<span>Not at all likely</span><span>Extremely likely</span>";
+    ui.answers.appendChild(ends);
+  } else {
+    const wrap=document.createElement("div");
+    wrap.className="answers";
+    q.options.forEach(([label,score],i)=>{
+      wrap.appendChild(mk(label,String(i+1),()=>answer(label,score)));
+    });
+    ui.answers.appendChild(wrap);
+  }
+
+  ui.survey.hidden=false;
+  beep(520,0.09,"triangle",0.045);
+  setTimeout(()=>{ const f=ui.answers.querySelector("button"); if(f) f.focus(); },60);
+}
+
+function answer(label,score){
+  G.answers.push({q:G.currentQ.q, a:label, score});
+  ui.survey.hidden=true;
+  beep(700,0.07,"triangle",0.04);
+  countdown();
+}
+
+function countdown(){
+  G.state="resume";
+  let n=3;
+  ui.resumeNum.textContent=n;
+  ui.resumeMsg.textContent="Thanks. Back to it";
+  ui.resume.hidden=false;
+  const tick=setInterval(()=>{
+    n--;
+    if(n<=0){
+      clearInterval(tick);
+      ui.resume.hidden=true;
+      G.state="playing";
+      last=performance.now();
+    } else {
+      ui.resumeNum.textContent=n;
+      beep(420,0.05,"square",0.03);
+    }
+  },550);
+}
+
+/* ============================================================
+   GAME OVER + RESULTS
+   ============================================================ */
+function gameOver(reason){
+  G.state="over";
+  beep(120,0.5,"sawtooth",0.06);
+  ui.overTitle.textContent="Shift over";
+  ui.overSub.textContent=reason+". Here's what you told HR along the way.";
+  ui.stScore.textContent=String(G.score).padStart(5,"0");
+  ui.stWave.textContent=G.wave;
+
+  const scored=G.answers.filter(a=>typeof a.score==="number");
+  if(scored.length){
+    const pct=Math.round(scored.reduce((s,a)=>s+a.score,0)/scored.length*100);
+    ui.stEng.textContent=pct+"%";
+  } else ui.stEng.textContent="—";
+
+  ui.log.innerHTML="";
+  G.answers.forEach(a=>{
+    const li=document.createElement("li");
+    li.textContent=a.q;
+    const em=document.createElement("em");
+    em.textContent=a.a;
+    li.appendChild(em);
+    ui.log.appendChild(li);
+  });
+  ui.logEmpty.hidden = G.answers.length>0;
+  ui.over.hidden=false;
+  setTimeout(()=>document.getElementById("againBtn").focus(),80);
+}
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+const KEYMAP={ArrowLeft:"left",KeyA:"left",ArrowRight:"right",KeyD:"right",Space:"fire",KeyW:"fire",ArrowUp:"fire"};
+
+addEventListener("keydown",e=>{
+  // survey shortcuts
+  if(G && G.state==="survey"){
+    const btns=[...ui.answers.querySelectorAll("button")];
+    const n=parseInt(e.key,10);
+    if(!isNaN(n)){
+      const idx = G.currentQ.t==="enps" ? n : n-1;
+      if(btns[idx]){ e.preventDefault(); btns[idx].click(); }
+    }
+    return;
+  }
+  if(KEYMAP[e.code]){ e.preventDefault(); keys[KEYMAP[e.code]]=true; }
+  if(e.code==="KeyP" && G){
+    if(G.state==="playing"){ G.state="paused"; }
+    else if(G.state==="paused"){ G.state="playing"; last=performance.now(); }
+  }
+  if(e.code==="Enter" && G && G.state==="over") document.getElementById("againBtn").click();
+});
+addEventListener("keyup",e=>{ if(KEYMAP[e.code]) keys[KEYMAP[e.code]]=false; });
+addEventListener("blur",()=>{ keys.left=keys.right=keys.fire=false; });
+
+function bindPad(id,k){
+  const b=el(id);
+  const on=e=>{e.preventDefault();keys[k]=true;};
+  const off=e=>{e.preventDefault();keys[k]=false;};
+  b.addEventListener("touchstart",on,{passive:false});
+  b.addEventListener("touchend",off,{passive:false});
+  b.addEventListener("touchcancel",off,{passive:false});
+  b.addEventListener("mousedown",on);
+  addEventListener("mouseup",off);
+}
+bindPad("padLeft","left"); bindPad("padRight","right"); bindPad("padFire","fire");
+
+// drag-to-move on the canvas
+cv.addEventListener("touchmove",e=>{
+  if(!G||G.state!=="playing") return;
+  e.preventDefault();
+  const r=cv.getBoundingClientRect();
+  const x=(e.touches[0].clientX-r.left)/r.width*W;
+  G.player.x=Math.max(8,Math.min(W-8-G.player.w,x-G.player.w/2));
+},{passive:false});
+
+ui.soundBtn.addEventListener("click",()=>{
+  soundOn=!soundOn;
+  ui.soundBtn.textContent=soundOn?"Sound on":"Sound off";
+  ui.soundBtn.setAttribute("aria-pressed",String(soundOn));
+  if(soundOn) beep(600,0.06);
+});
+
+el("startBtn").addEventListener("click",()=>{
+  ui.start.hidden=true;
+  newGame();
+  last=performance.now();
+  beep(520,0.08,"triangle",0.05);
+});
+
+el("againBtn").addEventListener("click",()=>{
+  ui.over.hidden=true;
+  newGame();
+  last=performance.now();
+});
+
+el("copyBtn").addEventListener("click",async()=>{
+  const lines=["Pulse Invaders — responses","Score: "+G.score+"  ·  Wave: "+G.wave,""];
+  if(G.answers.length) G.answers.forEach((a,i)=>lines.push((i+1)+". "+a.q+"\n   → "+a.a));
+  else lines.push("No questions answered.");
+  const btn=el("copyBtn");
+  try{ await navigator.clipboard.writeText(lines.join("\n")); btn.textContent="Copied"; }
+  catch(e){ btn.textContent="Copy blocked"; }
+  setTimeout(()=>btn.textContent="Copy responses",1600);
+});
+
+// idle attract frame behind the title card
+G={state:"idle",score:0,wave:1,lives:3,pulseT:0,parts:[],stars:[],invaders:[],bunkers:[],
+   player:{x:W/2-13,y:H-56,w:26,h:16,dead:0},pBullet:null,eBullets:[],gx:(W-GRID_W)/2,gy:80,frame:0,flash:0};
+for(let i=0;i<46;i++) G.stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()<0.25?2:1});
+for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) G.invaders.push({r,c,t:ROW_TYPE[r],alive:true});
+setInterval(()=>{ if(G&&G.state==="idle") G.frame^=1; },560);
+
+})();
+</script>
+</body>
+</html>
